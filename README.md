@@ -70,7 +70,7 @@ we can pause the looper via
 '''
 docker pause looper
 '''
-#Keep the logs open and attach to the running container from the second terminal using 'attach':
+Keep the logs open and attach to the running container from the second terminal using 'attach':
 '''
 $ docker attach looper
 '''
