@@ -1,4 +1,4 @@
-# docker_course
+# Docker_course
 Notes and exercises from docker course from helsinki university
 
 Docker course
