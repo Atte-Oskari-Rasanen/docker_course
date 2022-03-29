@@ -1,6 +1,6 @@
-# Docker course
-
+Docker course
 https://devopswithdocker.com/getting-started
+https://github.com/oneiromancy/devops-with-docker
 
 
 #quick commands:
@@ -273,7 +273,9 @@ a container, then we need to specify python as the entrypoint
 Interacting with the container via volumes and ports
 
 With bind mount we can mount a file or directory from our own machine into the container.
-Let's start another container with -v option, that requires an absolute path. We mount our current folder as /mydir in our container, overwriting everything that we have put in that folder in our Dockerfile.
+Let's start another container with -v option, that requires an absolute path. We mount our
+current folder as /mydir in our container, overwriting everything that we have put
+in that folder in our Dockerfile.
 '''
 $ docker run -v "$(pwd):/mydir" youtube-dl https://imgur.com/JY5tHqr
 '''
@@ -326,7 +328,7 @@ CMD ["java", "-jar", "./target/docker-example-1.1.3.jar"]
 '''
 Command:
 '''
-docker build . -t spring_project && docker run -p 8080:8080 spring_project
+docker build . -t fron && docker run -p 8080:8080 front
 '''
 
 
@@ -334,7 +336,7 @@ docker build . -t spring_project && docker run -p 8080:8080 spring_project
 E. 1.12
 Dockerfile
 '''
-FROM alpine:latest
+FROM ubuntu:latest
 
 COPY . .
 
@@ -342,9 +344,9 @@ WORKDIR /usr/src/app
 
 EXPOSE 5000
 
-RUN apk update && apk add curl
+RUN apt-get update && apt-get install curl
 RUN curl -sL https://deb.nodesource.com/setup_16.x
-RUN apk add nodejs && apk add npm
+RUN apt-get install nodejs && apt-get install npm
 
 #RUN npm run build
 RUN npm install -g serve
@@ -352,6 +354,33 @@ RUN npm install -g serve
 
 CMD ["serve","-s", "-l", "5000","build"]
 '''
+
+E. 1.13
+Dockerfile
+'''
+FROM ubuntu:latest
+
+COPY . .
+EXPOSE 8080
+
+WORKDIR /usr/src/app
+
+EXPOSE 5000
+
+#RUN apt-get update && apt-get install -y curl
+RUN apt-get update && apt-get install - y curl && rm -rf /usr/src/app/go && curl https://golang.org/dl/go1.18.linux-amd64.tar.gz --output go.tar.gz && tar -C /usr/src/app go.tar.gz
+
+#RUN wget -c https://golang.org/dl/go1.18.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.18.linux-amd64.tar.gz
+
+ENV PATH="/usr/src/app/go:$PATH"
+
+RUN go build
+RUN go test
+
+CMD ["./server"]
+
+'''
+
 
 command
 '''
@@ -363,5 +392,125 @@ docker build . -t front && docker run -p 5000:5000 front
 https://towardsdatascience.com/a-complete-guide-to-using-environment-variables-and-files-with-docker-and-compose-4549c21dc6af
 
 
-#create an env_file which contains the env params to be passed 
+#create an env_file which contains the env params to be passed
 docker run --env-file=env_file_name
+
+#rm ensures that the container is removed afterwards automatically
+docker run --rm -p 8787:8787 -e PASSWORD=YOURNEWPASSWORD rocker/verse
+
+
+With docker multistage build you can build a container merging several images
+
+Example dockerfile:
+'''
+FROM golang:1.7.3
+WORKDIR /go/src/github.com/alexellis/href-counter/
+RUN go get -d -v golang.org/x/net/html
+COPY app.go .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=0 /go/src/github.com/alexellis/href-counter/app .
+CMD ["./app"]
+'''
+
+Then you build
+'''
+docker build -t alexellis2/href-counter:latest
+'''
+
+More info here: https://stackoverflow.com/questions/39626579/is-there-a-way-to-combine-docker-images-into-1-container
+
+
+The end result is the same tiny production image as before, with a significant
+reduction in complexity. You don’t need to create any intermediate images and
+you don’t need to extract any artifacts to your local system at all.
+
+How does it work? The second FROM instruction starts a new build stage with the
+alpine:latest image as its base. The COPY --from=0 line copies just the built
+artifact from the previous stage into this new stage. The Go SDK and any intermediate
+artifacts are left behind, and not saved in the final image.
+
+Details: Building a custom image is by far easier than creating a dockerfile using
+a public image as you can store whatever hacks and mods into the image. To do so,
+start a blank container with a basic Linux image (or broadinstitute/scala-baseimage),
+install whatever tools you need and configure them until everything works correctly,
+then save it (the container) as an image. Create a new container off this image and
+test to see if you can build your code on top of it via docker-compose (or however
+you want to do/build it). If it works, than you have a working base image that you
+can upload to a repo so others can pull it.
+
+
+For increased security with when connecting opening a port:
+bind the port you use to the host machine directly. It will not be exposed to the
+public and only the host can interact with that port. It may look like this in the
+docker-compose file:
+
+version: '2.2'
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.0
+    container_name: es01
+    # ...
+    ports:
+      - 127.0.0.1:9200:9200 # <<<
+
+#Docker quick commands
+https://www.padok.fr/en/blog/do-you-have-all-it-takes-to-use-docker
+
+atensailio
+docker run --rm -p 127.0.0.1:9797:8787 -e PASSWORD=atensailio bjorklund/aavlib:latest
+docker run -d -v "$(pwd)"/AAVlib-SRA:/home/rstudio/seqFiles -i -p 9797:8787 --name aav-lib bjorklund/aavlib:v0.2
+
+docker run --rm -v "$(pwd)"/sample_data/AAVlib-SRA:/home/rstudio/seqFiles -i -p 127.0.0.1:9797:8787 -e PASSWORD=atensailio bjorklund/aavlib:latest
+docker exec -it mystifying_mclean "bin/bash"
+
+
+chowning the dockerfile may not be always be ideal if you need to chown several ones
+
+
+NOTE: if you’re using something like docker on mac, you won’t run into those permission
+issues, as the file sharing is done through NFS and your local files will have the right user.
+
+In-depth info about volumes in docker
+https://container42.com/2014/11/03/docker-indepth-volumes/
+each Dockerfile command is creating a new container. This means a new volume is also
+created. Since in the example Dockerfile the volume is specified before anything
+existed in that directory, when the container that was created to run the touch
+/foo/bar/baz command, it did so with a volume mounted in for /foo/bar, so baz was
+written to the volume mounted at /foo/bar, not the actual container/image filesystem.
+
+Often you will need to set the permissions and ownership on a volume, or initialise
+the volume with some default data or configuration files. A key point to be aware
+of here is that anything after the VOLUME instruction in a Dockerfile will not be
+able to make changes to that volume!!!!!!
+
+example:
+'''
+FROM debian:wheezy
+RUN useradd foo
+VOLUME /data
+RUN touch /data/x
+RUN chown -R foo:foo /data
+'''
+Will not work as expected. We want the touch command to run in the image's filesystem
+but it is actually running in the volume of a temporary container. The following will work:
+
+'''
+FROM debian:wheezy
+RUN useradd foo
+RUN mkdir /data && touch /data/x
+RUN chown -R foo:foo /data
+VOLUME /data
+'''
+Docker is clever enough to copy any files that exist in the image under the volume
+mount into the volume and set the ownership correctly. This won't happen if you
+specify a host directory for the volume (so that host files aren't accidentally overwritten).
+
+docker run --rm -it -v $(pwd)/sample_data/AAVlib-SRA:/home/rstudio/seqFiles -p 127.0.0.1:9797:8787 --user $(id -u):$(id -g) -e PASSWORD=atensailio bjorklund/aavlib:latest
+docker run --rm -it  -e PASSWORD=atensailio -p 127.0.0.1:9797:8787 -v $(pwd)/sample_data/AAVlib-SRA:/home/rstudio/seqFiles bjorklund/aavlib:latest
+
+To the Dockerfile https://bitbucket.org/MNM-LU/aav-library/src/master/Dockerfile
+added apt-utils to the dockerfile and updated samtools location as the github link for it was no longer found
