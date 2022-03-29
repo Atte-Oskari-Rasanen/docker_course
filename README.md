@@ -1,6 +1,5 @@
 Docker course
 https://devopswithdocker.com/getting-started
-https://github.com/oneiromancy/devops-with-docker
 
 
 #quick commands:
